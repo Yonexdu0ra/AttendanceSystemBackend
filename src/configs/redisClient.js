@@ -9,6 +9,9 @@ export const client = createClient({
     }
 });
 
+export const redisPub = createClient();
+export const redisSub = createClient();
+
 client.on('error', err => console.log('Redis Client Error', err));
 const connectRedis = async () => {
     try {
