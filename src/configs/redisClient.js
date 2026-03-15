@@ -21,7 +21,11 @@ redisSub.on('error', err => console.log('Redis Sub Error', err));
 const connectRedis = async () => {
     try {
 
-        await client.connect();
+        await Promise.all([
+            client.connect(),
+            redisPub.connect(),
+            redisSub.connect()
+        ]);
         console.log('connect to redis success !');
     } catch (error) {
         console.log('connect to redis failed !', error.message);
