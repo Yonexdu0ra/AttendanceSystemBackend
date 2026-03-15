@@ -3,7 +3,7 @@ import {   userDeviceService   } from "./user-device.service.js";
 import {   buildOffsetClause, parseOffsetResult   } from "../utils/offset-pagination.js";
 import {   parseCursorResult   } from "../utils/cursor-pagination.js";
 import {   NotFoundError, ForbiddenError   } from "../utils/errors.js";
-import {   client as redisClient   } from "../configs/redisClient.js";
+import {   client as redisClient, redisPub   } from "../configs/redisClient.js";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // QUERY
@@ -110,6 +110,9 @@ const send = async ({ userId, title, content, type, refType, refId, push = true 
     // Xóa cache unread count
     _invalidateUnreadCache(userId);
 
+    // Gửi real-time qua WebSocket thông qua Redis pub/sub
+    _publishToRedis(`notification:${userId}`, notification).catch(() => { });
+
     // Gửi push notification (bất đồng bộ, không block)
     if (push) {
         _sendPush([userId], { title, content, refType, refId }).catch((err) =>
@@ -149,6 +152,14 @@ const broadcast = async ({ userIds, title, content, type, refType, refId, push =
 
     // Xóa cache unread của tất cả người nhận (bất đồng bộ)
     userIds.forEach((uid) => _invalidateUnreadCache(uid));
+
+    // Gửi real-time qua WebSocket thông qua Redis pub/sub (bất đồng bộ)
+    // Lấy từng bản ghi thông báo riêng lẻ không khả thi qua createMany,
+    // nên publish payload chung cho mỗi user.
+    userIds.forEach((uid) => {
+        const record = { userId: uid, title, content, type, refType, refId };
+        _publishToRedis(`notification:${uid}`, record).catch(() => { });
+    });
 
     // Gửi push notification (bất đồng bộ)
     if (push) {
@@ -236,6 +247,18 @@ const removeAllRead = async (userId) => {
  */
 const _invalidateUnreadCache = (userId) => {
     redisClient.del(`notif:unread:${userId}`).catch(() => { });
+};
+
+/**
+ * Publish một sự kiện thông báo lên Redis pub/sub để Socket.io
+ * forward tới client đang kết nối.
+ *
+ * @param {string} channel  - Tên channel Redis, ví dụ: `notification:${userId}`
+ * @param {object} payload  - Dữ liệu cần gửi (sẽ được JSON.stringify)
+ * @returns {Promise<void>}
+ */
+const _publishToRedis = (channel, payload) => {
+    return redisPub.publish(channel, JSON.stringify(payload));
 };
 
 /**
