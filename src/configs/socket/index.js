@@ -89,7 +89,6 @@ function socketHandler(io) {
     _subscribe("user:*",         "user",         (ch) => ch.split(':')[1]);
     _subscribe("leave:*",        "leave",        (ch) => ch.split(':')[1]);
     _subscribe("overtime:*",     "overtime",     (ch) => ch.split(':')[1]);
-
 }
 
 export default socketHandler;
