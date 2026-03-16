@@ -68,8 +68,13 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 3000;
 
 httpServer.listen(PORT, () => {
-    console.log(`✅  Server đang chạy tại   http://localhost:${PORT}`);
-    console.log(`📚  Swagger UI khả dụng tại http://localhost:${PORT}/api-docs`);
+    console.log("---------- LOCAL ----------");
+    console.log(`API REST: http://${process.env.HOST_LOCAL}:${PORT}`);
+    console.log(`Websocket ws://${process.env.HOST_LOCAL}:${PORT}`);
+    console.log("---------- PROD ----------");
+    console.log(`API REST: http://${process.env.HOST_PROD}:${PORT}`);
+    console.log(`Websocket ws://${process.env.HOST_PROD}:${PORT}`);
+    
 });
 
 
