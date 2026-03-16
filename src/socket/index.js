@@ -1,6 +1,6 @@
 import { redisSub } from "../configs/redisClient.js";
 import { authenticateSocket } from "../middlewares/auth.middleware.js";
-import { getManagersByJobId } from '../services/job.service.js'
+import { jobService } from '../services/job.service.js'
 function socketHandler(io) {
     console.log('Websocket running...');
 
@@ -13,7 +13,7 @@ function socketHandler(io) {
 
             // đưa các quản lý của ca làm việc vòa 1 room để nhận chung thông báo về ca làm việc đó
             if (socket.user.role === "MANAGER" || socket.user.role === "ADMIN") {
-                const managedJobs = await getManagersByJobId(socket.user.id);
+                const managedJobs = await jobService.getManagersByJobId(socket.user.id);
                 for (const job of managedJobs) {
                     socket.join(`job_${job._id.toString()}`);
                 }

@@ -29,6 +29,12 @@ const findById = (id) =>
         select: defaultSelect,
     });
 
+// ─── Tìm theo ID (có password, dùng cho auth) ────────────────────────────────
+const findByIdWithPassword = (id) =>
+    prisma.user.findUnique({
+        where: { id, ...notDeleted },
+    }); // trả về full record (có password) dùng cho change-password
+
 // ─── Tìm theo Email ───────────────────────────────────────────────────────────
 const findByEmail = (email) =>
     prisma.user.findUnique({
@@ -101,6 +107,7 @@ const hardDelete = (id) =>
 
 export const userRepository = {
     findById,
+    findByIdWithPassword,
     findByEmail,
     findByPhone,
     findByCode,

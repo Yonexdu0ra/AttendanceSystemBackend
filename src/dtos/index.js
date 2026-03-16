@@ -2,6 +2,10 @@
 export {  CreateUserDto, UpdateUserDto, UpdatePasswordDto, RoleEnum  } from "./user.dto.js";
 
 
+// ─── Auth DTOs ───────────────────────────────────────────────────────────────
+export {  LoginDto, ChangePasswordDto  } from "./auth.dto.js";
+
+
 // ─── Profile DTOs ─────────────────────────────────────────────────────────────
 export {  CreateProfileDto, UpdateProfileDto  } from "./profile.dto.js";
 

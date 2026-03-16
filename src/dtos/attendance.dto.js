@@ -97,7 +97,7 @@ export const CheckInDto = z.object({
     deviceId: z.string().optional(),
 
     // Địa chỉ IP của thiết bị (server có thể tự lấy từ request, field này dự phòng)
-    ipAddress: z.string().ip({ message: "IP không hợp lệ" }).optional(),
+    ipAddress: z.union([z.ipv4(), z.ipv6()], { message: "IP không hợp lệ" }).optional(),
 
     // Mã QR được quét (token mã hóa xác thực vị trí/ca làm)
     qrCode: z.string().min(1, "Mã QR không được để trống").optional(),
@@ -122,7 +122,7 @@ export const CheckOutDto = z.object({
     deviceId: z.string().optional(),
 
     // Địa chỉ IP của thiết bị
-    ipAddress: z.string().ip({ message: "IP không hợp lệ" }).optional(),
+    ipAddress: z.union([z.ipv4(), z.ipv6()], { message: "IP không hợp lệ" }).optional(),
 
     // Mã QR được quét khi check-out
     qrCode: z.string().min(1, "Mã QR không được để trống").optional(),

@@ -20,9 +20,7 @@ export const CreateUserDeviceDto = z.object({
 
     fcmToken: z.string().optional(),
 
-    ipAddress: z
-        .string()
-        .ip({ message: "Địa chỉ IP không hợp lệ" }),
+    ipAddress: z.union([z.ipv4(), z.ipv6()], { message: "Địa chỉ IP không hợp lệ" }),
 });
 
 // ─── Update UserDevice DTO ────────────────────────────────────────────────────
@@ -34,10 +32,7 @@ export const UpdateUserDeviceDto = z.object({
 
     fcmToken: z.string().optional(),
 
-    ipAddress: z
-        .string()
-        .ip({ message: "Địa chỉ IP không hợp lệ" })
-        .optional(),
+    ipAddress: z.union([z.ipv4(), z.ipv6()], { message: "Địa chỉ IP không hợp lệ" }).optional(),
 });
 
 /**

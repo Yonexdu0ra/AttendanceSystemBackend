@@ -2,6 +2,14 @@
 export {  sessionService  } from "./session.service.js";
 
 
+// ─── Auth ────────────────────────────────────────────────────────────────────
+export {  authService  } from "./auth.service.js";
+
+
+// ─── User ────────────────────────────────────────────────────────────────────
+export {  userService  } from "./user.service.js";
+
+
 // ─── User Device ──────────────────────────────────────────────────────────────
 export {  userDeviceService  } from "./user-device.service.js";
 
