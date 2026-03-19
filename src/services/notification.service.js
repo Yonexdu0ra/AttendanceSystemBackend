@@ -6,21 +6,43 @@ import {   NotFoundError, ForbiddenError   } from "../utils/errors.js";
 import {   client as redisClient, redisPub   } from "../configs/redisClient.js";
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// QUERY
+// READ
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ─── Lấy thông báo của user (offset pagination) ───────────────────────────────
+/**
+ * Lấy chi tiết một thông báo theo ID.
+ *
+ * @param {string} id
+ * @returns {Promise<object|null>}
+ * @throws {NotFoundError} Nếu không tìm thấy
+ */
+const getById = async (id) => {
+    const notification = await notificationRepository.findById(id);
+    if (!notification) throw new NotFoundError("Không tìm thấy thông báo");
+    return notification;
+};
+
+/**
+ * Lấy danh sách tất cả thông báo (dành cho admin/manager).
+ * Hỗ trợ lọc, phân trang offset.
+ *
+ * @param {object} params
+ * @returns {Promise<object>}
+ */
+const list = async (params) => {};
+
 /**
  * Lấy danh sách thông báo của một người dùng với offset pagination (web).
  *
+ * @param {string}  userId
  * @param {object}  params
- * @param {string}  params.userId
  * @param {number}  [params.page=1]
  * @param {number}  [params.limit=20]
  * @param {boolean} [params.isRead]   - Lọc theo trạng thái đã đọc / chưa đọc
  * @returns {Promise<object>} Danh sách thông báo kèm metadata phân trang
  */
-const getNotifications = async ({ userId, page = 1, limit = 20, isRead } = {}) => {
+const listByUser = async (userId, params = {}) => {
+    const { page = 1, limit = 20, isRead } = params;
     const { skip, take } = buildOffsetClause(page, limit);
 
     const where = { userId, ...(isRead !== undefined ? { isRead } : {}) };
@@ -33,18 +55,18 @@ const getNotifications = async ({ userId, page = 1, limit = 20, isRead } = {}) =
     return parseOffsetResult(data, total, page, limit);
 };
 
-// ─── Lấy thông báo của user (cursor pagination) ───────────────────────────────
 /**
- * Lấy danh sách thông báo với cursor pagination (mobile).
+ * Lấy danh sách thông báo của người dùng với cursor pagination (mobile).
  *
+ * @param {string}  userId
  * @param {object}  params
- * @param {string}  params.userId
  * @param {string}  [params.cursor]
  * @param {number}  [params.limit=20]
  * @param {boolean} [params.isRead]
  * @returns {Promise<{ data: object[], hasMore: boolean, nextCursor: string | null }>}
  */
-const getNotificationsCursor = async ({ userId, cursor, limit = 20, isRead } = {}) => {
+const listByUserCursor = async (userId, params = {}) => {
+    const { cursor, limit = 20, isRead } = params;
     const raw = await notificationRepository.findByUserIdCursor({
         userId,
         cursor,
@@ -54,7 +76,27 @@ const getNotificationsCursor = async ({ userId, cursor, limit = 20, isRead } = {
     return parseCursorResult(raw, limit);
 };
 
-// ─── Đếm số thông báo chưa đọc ───────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// COUNT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Đếm tổng số thông báo theo bộ lọc (dành cho admin/manager).
+ *
+ * @param {object} filter - Prisma where clause
+ * @returns {Promise<number>}
+ */
+const count = async (filter) => {};
+
+/**
+ * Đếm số thông báo của một người dùng theo bộ lọc.
+ *
+ * @param {string} userId
+ * @param {object} filter - Bộ lọc bổ sung (VD: { isRead: false })
+ * @returns {Promise<number>}
+ */
+const countByUser = async (userId, filter) => {};
+
 /**
  * Trả về số lượng thông báo chưa đọc của người dùng.
  * Kết quả được cache trong Redis 60 giây.
@@ -62,7 +104,7 @@ const getNotificationsCursor = async ({ userId, cursor, limit = 20, isRead } = {
  * @param {string} userId
  * @returns {Promise<number>}
  */
-const countUnread = async (userId) => {
+const countUnreadByUser = async (userId) => {
     const cacheKey = `notif:unread:${userId}`;
 
     try {
@@ -70,34 +112,128 @@ const countUnread = async (userId) => {
         if (cached !== null) return parseInt(cached, 10);
     } catch (_) { /* Redis không bắt buộc */ }
 
-    const count = await notificationRepository.countUnread(userId);
+    const total = await notificationRepository.countUnread(userId);
 
     try {
-        await redisClient.setEx(cacheKey, 60, String(count));
+        await redisClient.setEx(cacheKey, 60, String(total));
     } catch (_) { }
 
-    return count;
+    return total;
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// GỬI THÔNG BÁO
+// UPDATE
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ─── Gửi thông báo cho 1 người ────────────────────────────────────────────────
+/**
+ * Cập nhật thông báo theo ID (dành cho admin/manager).
+ *
+ * @param {string} id
+ * @param {object} data - Dữ liệu cần cập nhật
+ * @returns {Promise<object>}
+ */
+const updateById = async (id, data) => {};
+
+/**
+ * Cập nhật hàng loạt thông báo theo userId (dành cho admin/manager).
+ *
+ * @param {string} userId
+ * @param {object} data - Dữ liệu cần cập nhật
+ * @returns {Promise<{ count: number }>}
+ */
+const updateByUser = async (userId, data) => {};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACTION (business logic)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Đánh dấu một thông báo là đã đọc theo ID.
+ * Tránh IDOR bằng cách kiểm tra quyền sở hữu.
+ *
+ * @param {string} id       - ID thông báo cần đánh dấu
+ * @param {string} [userId] - ID người dùng thực hiện (kiểm tra quyền)
+ * @returns {Promise<{ count: number }>}
+ * @throws {NotFoundError}  Nếu không tìm thấy
+ * @throws {ForbiddenError} Nếu thông báo không thuộc về userId
+ */
+const markRead = async (id, userId) => {
+    const notification = await notificationRepository.findById(id);
+    if (!notification) throw new NotFoundError("Không tìm thấy thông báo");
+    if (userId && notification.userId !== userId) {
+        throw new ForbiddenError("Bạn không có quyền thực hiện thao tác này");
+    }
+    const result = await notificationRepository.markManyAsRead([id], notification.userId);
+    _invalidateUnreadCache(notification.userId);
+    return result;
+};
+
+/**
+ * Đánh dấu tất cả thông báo chưa đọc của người dùng là đã đọc.
+ *
+ * @param {string} userId
+ * @returns {Promise<{ count: number }>} Số bản ghi được cập nhật
+ */
+const markAllReadByUser = async (userId) => {
+    const result = await notificationRepository.markAllAsRead(userId);
+    _invalidateUnreadCache(userId);
+    return result;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DELETE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Xóa một thông báo theo ID.
+ * Tránh IDOR bằng cách kiểm tra quyền sở hữu.
+ *
+ * @param {string} id       - ID thông báo cần xóa
+ * @param {string} [userId] - ID người dùng thực hiện (kiểm tra quyền, bỏ qua nếu admin)
+ * @returns {Promise<object>} Thông báo vừa bị xóa
+ * @throws {NotFoundError}  Nếu không tìm thấy
+ * @throws {ForbiddenError} Nếu thông báo không thuộc về userId
+ */
+const removeById = async (id, userId) => {
+    const notification = await notificationRepository.findById(id);
+    if (!notification) throw new NotFoundError("Không tìm thấy thông báo");
+    if (userId && notification.userId !== userId) {
+        throw new ForbiddenError("Bạn không có quyền xóa thông báo này");
+    }
+    _invalidateUnreadCache(notification.userId);
+    return notificationRepository.remove(id);
+};
+
+/**
+ * Xóa toàn bộ thông báo đã đọc của người dùng.
+ *
+ * @param {string} userId
+ * @returns {Promise<{ count: number }>} Số thông báo đã xóa
+ */
+const removeByUser = async (userId) => {
+    return notificationRepository.removeAllRead(userId);
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DOMAIN ACTION (quan trọng nhất)
+// ═══════════════════════════════════════════════════════════════════════════════
+
 /**
  * Tạo thông báo in-app cho một người dùng và tùy chọn gửi push notification.
  *
- * @param {object}  dto
- * @param {string}  dto.userId    - Người nhận
- * @param {string}  dto.title     - Tiêu đề
- * @param {string}  dto.content   - Nội dung
- * @param {string}  dto.type      - NotificationType
- * @param {string}  [dto.refType] - Loại đối tượng liên kết (redirect)
- * @param {string}  [dto.refId]   - ID đối tượng liên kết
- * @param {boolean} [dto.push=true] - Có gửi push notification không
+ * @param {string}  userId
+ * @param {object}  payload
+ * @param {string}  payload.title     - Tiêu đề
+ * @param {string}  payload.content   - Nội dung
+ * @param {string}  payload.type      - NotificationType
+ * @param {string}  [payload.refType] - Loại đối tượng liên kết (redirect)
+ * @param {string}  [payload.refId]   - ID đối tượng liên kết
+ * @param {boolean} [payload.push=true] - Có gửi push notification không
  * @returns {Promise<object>} Thông báo vừa được tạo
  */
-const send = async ({ userId, title, content, type, refType, refId, push = true }) => {
+const sendToUser = async (userId, payload = {}) => {
+    const { title, content, type, refType, refId, push = true } = payload;
+
     const notification = await notificationRepository.create({
         userId,
         title,
@@ -123,22 +259,23 @@ const send = async ({ userId, title, content, type, refType, refId, push = true 
     return notification;
 };
 
-// ─── Gửi thông báo cho nhiều người (broadcast) ───────────────────────────────
 /**
  * Tạo và gửi thông báo in-app cho nhiều người dùng cùng lúc.
  * Tùy chọn gửi kèm push notification.
  *
- * @param {object}    dto
- * @param {string[]}  dto.userIds   - Danh sách người nhận
- * @param {string}    dto.title
- * @param {string}    dto.content
- * @param {string}    dto.type      - NotificationType
- * @param {string}    [dto.refType]
- * @param {string}    [dto.refId]
- * @param {boolean}   [dto.push=true]
+ * @param {string[]} userIds   - Danh sách người nhận
+ * @param {object}   payload
+ * @param {string}   payload.title
+ * @param {string}   payload.content
+ * @param {string}   payload.type      - NotificationType
+ * @param {string}   [payload.refType]
+ * @param {string}   [payload.refId]
+ * @param {boolean}  [payload.push=true]
  * @returns {Promise<{ count: number }>} Số thông báo đã tạo
  */
-const broadcast = async ({ userIds, title, content, type, refType, refId, push = true }) => {
+const sendToUsers = async (userIds, payload = {}) => {
+    const { title, content, type, refType, refId, push = true } = payload;
+
     const records = userIds.map((userId) => ({
         userId,
         title,
@@ -169,72 +306,6 @@ const broadcast = async ({ userIds, title, content, type, refType, refId, push =
     }
 
     return result;
-};
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ĐỌC / XÓA
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// ─── Đánh dấu nhiều thông báo là đã đọc ──────────────────────────────────────
-/**
- * Đánh dấu các thông báo được chỉ định là đã đọc.
- * Chỉ cập nhật những thông báo thuộc về userId (tránh IDOR).
- *
- * @param {string}   userId          - ID người dùng thực hiện
- * @param {string[]} notificationIds - Danh sách ID thông báo cần đánh dấu
- * @returns {Promise<{ count: number }>} Số bản ghi được cập nhật
- */
-const markAsRead = async (userId, notificationIds) => {
-    const result = await notificationRepository.markManyAsRead(notificationIds, userId);
-    _invalidateUnreadCache(userId);
-    return result;
-};
-
-// ─── Đánh dấu tất cả là đã đọc ───────────────────────────────────────────────
-/**
- * Đánh dấu tất cả thông báo chưa đọc của người dùng là đã đọc.
- *
- * @param {string} userId
- * @returns {Promise<{ count: number }>} Số bản ghi được cập nhật
- */
-const markAllAsRead = async (userId) => {
-    const result = await notificationRepository.markAllAsRead(userId);
-    _invalidateUnreadCache(userId);
-    return result;
-};
-
-// ─── Xóa 1 thông báo ─────────────────────────────────────────────────────────
-/**
- * Xóa một thông báo. Kiểm tra quyền sở hữu trước khi xóa.
- *
- * @param {string} userId         - ID người dùng thực hiện (kiểm tra quyền)
- * @param {string} notificationId - ID thông báo cần xóa
- * @returns {Promise<object>} Thông báo vừa bị xóa
- * @throws {NotFoundError}  Nếu không tìm thấy
- * @throws {ForbiddenError} Nếu thông báo không thuộc về userId
- */
-const remove = async (userId, notificationId) => {
-    const notification = await notificationRepository.findById(notificationId);
-    if (!notification) {
-        throw new NotFoundError("Không tìm thấy thông báo");
-    }
-    if (notification.userId !== userId) {
-        throw new ForbiddenError("Bạn không có quyền xóa thông báo này");
-    }
-
-    _invalidateUnreadCache(userId);
-    return notificationRepository.remove(notificationId);
-};
-
-// ─── Xóa tất cả thông báo đã đọc ────────────────────────────────────────────
-/**
- * Xóa toàn bộ thông báo đã đọc của người dùng.
- *
- * @param {string} userId
- * @returns {Promise<{ count: number }>} Số thông báo đã xóa
- */
-const removeAllRead = async (userId) => {
-    return notificationRepository.removeAllRead(userId);
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -305,19 +376,31 @@ const _sendPush = async (userIds, { title, content, refType, refId }) => {
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 export const notificationService = {
-    // Query
-    getNotifications,
-    getNotificationsCursor,
-    countUnread,
+    // Read
+    getById,
+    list,
+    listByUser,
+    listByUserCursor,
 
-    // Gửi
-    send,
-    broadcast,
+    // Count
+    count,
+    countByUser,
+    countUnreadByUser,
 
-    // Đọc / Xóa
-    markAsRead,
-    markAllAsRead,
-    remove,
-    removeAllRead,
+    // Update
+    updateById,
+    updateByUser,
+
+    // Action
+    markRead,
+    markAllReadByUser,
+
+    // Delete
+    removeById,
+    removeByUser,
+
+    // Domain Action
+    sendToUser,
+    sendToUsers,
 };
 

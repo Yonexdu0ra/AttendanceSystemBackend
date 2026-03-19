@@ -214,8 +214,7 @@ const addManager = async ({ jobId, userId, addedBy, isAdmin = false }) => {
     const manager = await jobManagerRepository.createManager({ userId, jobId });
 
     // Thông báo cho manager mới
-    notificationService.send({
-        userId,
+    notificationService.sendToUser(userId, {
         title: "Bạn được thêm làm quản lý",
         content: `Bạn đã được thêm làm quản lý của công việc "${job.title}".`,
         type: "SYSTEM",

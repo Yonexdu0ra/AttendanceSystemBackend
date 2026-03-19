@@ -103,8 +103,7 @@ const requestJoinJob = async ({ userId, jobId }) => {
     // Gửi thông báo đến tất cả manager (bất đồng bộ)
     if (job.manager?.length) {
         const managerUserIds = job.manager.map((m) => m.userId).filter(Boolean);
-        notificationService.broadcast({
-            userIds: managerUserIds,
+        notificationService.sendToUsers(managerUserIds, {
             title: "Yêu cầu tham gia mới 📌",
             content: `Có người dùng xin tham gia công việc "${job.title}".`,
             type: "SYSTEM",
@@ -145,8 +144,7 @@ const addParticipant = async ({ userId, jobId, addedBy }) => {
     }
 
     // Thông báo cho user được thêm
-    notificationService.send({
-        userId,
+    notificationService.sendToUser(userId, {
         title: "Bạn được thêm vào công việc ✅",
         content: `Bạn đã được thêm vào công việc "${job.title}".`,
         type: "SYSTEM",
@@ -186,8 +184,7 @@ const reviewParticipation = async ({ userId, jobId, status, reviewedBy }) => {
     const updated = await userJoinedJobRepository.updateJoinStatus(userId, jobId, status);
 
     // Gửi thông báo cho user
-    notificationService.send({
-        userId,
+    notificationService.sendToUser(userId, {
         title: status === APPROVED ? "Yêu cầu tham gia được chấp nhận ✅" : "Yêu cầu tham gia bị từ chối ❌",
         content:
             status === APPROVED
@@ -243,8 +240,7 @@ const removeParticipant = async ({ userId, jobId, removedBy }) => {
 
     // Thông báo user bị xóa
     if (userId !== removedBy) {
-        notificationService.send({
-            userId,
+        notificationService.sendToUser(userId, {
             title: "Bạn đã bị xóa khỏi công việc",
             content: `Bạn đã bị xóa khỏi công việc "${job?.title}".`,
             type: "SYSTEM",

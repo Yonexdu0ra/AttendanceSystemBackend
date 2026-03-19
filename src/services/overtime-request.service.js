@@ -288,8 +288,7 @@ const reviewOvertimeRequest = async ({ id, approverId, status, reply }) => {
     });
 
     // Gửi thông báo in-app (bất đồng bộ)
-    notificationService.send({
-        userId: request.userId,
+    notificationService.sendToUser(request.userId, {
         title: status === APPROVED ? "Đơn OT được duyệt ✅" : "Đơn OT bị từ chối ❌",
         content:
             status === APPROVED

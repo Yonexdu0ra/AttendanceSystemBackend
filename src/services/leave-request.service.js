@@ -258,8 +258,7 @@ const reviewLeaveRequest = async ({ id, approverId, status, reply }) => {
     });
 
     // Gửi thông báo in-app cho người nộp đơn (bất đồng bộ)
-    notificationService.send({
-        userId: request.userId,
+    notificationService.sendToUser(request.userId, {
         title: status === APPROVED ? "Đơn nghỉ được duyệt ✅" : "Đơn nghỉ bị từ chối ❌",
         content:
             status === APPROVED
